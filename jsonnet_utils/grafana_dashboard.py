@@ -16,34 +16,26 @@ logging.basicConfig(
 )
 
 GRAFONNET_INCLUDES = """
-    local grafana = import 'grafonnet/grafana.libsonnet';
-    local dashboard = grafana.dashboard;
-    local row = grafana.row;
-    local prometheus = grafana.prometheus;
-    local template = grafana.template;
-    local graphPanel = grafana.graphPanel;"""
+    local grafana = import 'grafonnet/grafana.libsonnet';"""
 
 GRAFONNET_DASHBOARD = """
-    dashboard.new(\n{}, tags={})"""
-
-GRAFONNET_ROW = """
-    row.new()"""
+    grafana.dashboard.new(\n{}, tags={})"""
 
 GRAFONNET_GRAPH_PANEL = """
     .addPanel(
-      graphPanel.new(
+      grafana.graphPanel.new(
         '{}',
         datasource='$datasource',
         span={},
         format='{}',
-        stack={},
+        stack='{}',
         min=0,
       )
     )"""
 
 GRAFONNET_SINGLESTAT_PANEL = """
     .addPanel(
-      singlestat.new(
+      grafana.singlestat.new(
         '{}',
         datasource='$datasource',
         span={},
@@ -54,21 +46,11 @@ GRAFONNET_SINGLESTAT_PANEL = """
 
 GRAFONNET_PROMETHEUS_TARGET = """
     .addTarget(
-      prometheus.target(
+      grafana.prometheus.target(
         |||
           {}
         ||| % $._config,
         legendFormat='',
-      )
-    )"""
-
-GRAFONNET_INFLUXDB_TARGET = """
-    .addTarget(
-      influxdb.target(
-        |||
-          {}
-        ||| % $._config,
-        alias='{}',
       )
     )"""
 
@@ -86,16 +68,6 @@ def print_dashboard_info(dashboard):
             dashboard.get("_filename"),
         )
     )
-    # output.append("variables:")
-    # output.append(
-    #    "    count: {}".format(len(dashboard.get("templating", {}).get("list", [])))
-    # )
-    # output.append("    items:")
-    # for variable in dashboard.get("templating", {}).get("list", []):
-    #    output.append("    - {} ({})".format(variable["name"], variable["type"]))
-    # output.append("  panels:")
-    # output.append("    count: {}".format(len(dashboard.get("_panels", []))))
-    # output.append("    items:")
 
     for panel in dashboard.get("_panels", []):
         output.append("\n#### Panel {} ({})\n".format(panel["title"], panel["type"]))
@@ -178,31 +150,27 @@ def convert_dashboard_jsonnet(dashboard, format, source_path, build_path):
                         multi, variable["name"], variable["query"]
                     )
                 )
-        for row in dashboard.get("rows", []):
-            dashboard_lines.append(".addRow(")
-            dashboard_lines.append("row.new()")
-            for panel in row.get("panels", []):
-                if panel["type"] == "singlestat":
-                    dashboard_lines.append(
-                        GRAFONNET_SINGLESTAT_PANEL.format(
-                            panel["title"], panel["span"], panel["format"]
-                        )
+        for panel in dashboard.get("panels", []):
+            if panel["type"] == "singlestat":
+                dashboard_lines.append(
+                    GRAFONNET_SINGLESTAT_PANEL.format(
+                        panel["title"], "null" if "span" not in panel else panel["span"], panel["format"]
                     )
-                if panel["type"] == "graph":
-                    dashboard_lines.append(
-                        GRAFONNET_GRAPH_PANEL.format(
-                            panel["title"],
-                            panel["span"],
-                            panel["yaxes"][0]["format"],
-                            panel["stack"],
-                        )
+                )
+            if panel["type"] == "graph":
+                dashboard_lines.append(
+                    GRAFONNET_GRAPH_PANEL.format(
+                        panel["title"],
+                        "null" if "span" not in panel else panel["span"],
+                        panel["yaxes"][0]["format"],
+                        str(panel["stack"]),
                     )
-                for target in panel.get("targets", []):
-                    if "expr" in target:
-                        dashboard_lines.append(
-                            GRAFONNET_PROMETHEUS_TARGET.format(target["expr"])
-                        )
-            dashboard_lines.append(")")
+                )
+            for target in panel.get("targets", []):
+                if "expr" in target:
+                    dashboard_lines.append(
+                        GRAFONNET_PROMETHEUS_TARGET.format(target["expr"])
+                    )
 
         dashboard_lines.append("}\n}")
     else:
@@ -232,7 +200,7 @@ def convert_dashboard_jsonnet(dashboard, format, source_path, build_path):
             the_file.write(dashboard_str)
         output = (
             subprocess.Popen(
-                "jsonnet fmt -n 2 --max-blank-lines 2 --string-style s --comment-style s -i "
+                "jsonnetfmt -n 2 --max-blank-lines 2 --string-style s --comment-style s -i "
                 + build_file,
                 shell=True,
                 stdout=subprocess.PIPE,
@@ -261,9 +229,8 @@ def parse_dashboard(board_file):
     with open(board_file) as f:
         dashboard = json.load(f)
     panels = []
-    for row in dashboard["rows"]:
-        for panel in row["panels"]:
-            panels.append(panel)
+    for panel in dashboard["panels"]:
+        panels.append(panel)
     dashboard["_filename"] = os.path.basename(board_file)
     dashboard["_panels"] = panels
     return dashboard
