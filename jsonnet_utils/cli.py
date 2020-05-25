@@ -5,8 +5,8 @@ import sys
 import os
 import click
 import logging
-from .grafana_dashboard import convert_dashboards, info_dashboards, test_dashboards, metrics_dashboards, metrics_all
-from .prometheus_rule import convert_rules, metrics_rules, info_rules
+from .grafana_dashboard import convert_dashboards, test_dashboards
+from .prometheus_rule import convert_rules, metrics_rules
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)-5.5s]  %(message)s",
@@ -40,47 +40,6 @@ def dashboard_test(path, scheme, layout):
         'Searching path `{}` for JSON dashboards to test ...'.format(path))
     test_dashboards(path)
 
-
-@click.command()
-@click.option('--path', default='./data', help='Path to search for the source JSON dashboards.')
-def dashboard_info(path):
-    """Get info from Grafana JSON dashboards."""
-    logging.info(
-        'Searching path `{}` for JSON dashboards for detailed info ...'.format(path))
-    info_dashboards(path)
-
-
-@click.command()
-@click.option('--path', default='./data', help='Path to search for the JSON dashboards.')
-def dashboard_metrics(path):
-    """Get metric names from Grafana JSON dashboard targets."""
-    logging.info(
-        'Searching path `{}` for JSON dashboards for metrics ...'.format(path))
-    metrics_dashboards(path)
-
-
-@click.command()
-@click.option('--dashboard-path', default='./data/grafana', help='Path to search for the Grafana JSON dashboards.')
-@click.option('--rules-path', default='./data/prometheus', help='Path to search for the Prometheus YAML rules.')
-@click.option('--output', default='console', help='Type of output [console/json]')
-def all_metrics(dashboard_path, rules_path, output):
-    """Get metric names from Grafana JSON dashboard targets and Prometheus rules."""
-    logging.info(
-        'Searching path `{}` for JSON dashboards for metrics ...'.format(dashboard_path))
-    logging.info(
-        'Searching path `{}` for YAML rules for metrics ...'.format(rules_path))
-    metrics_all(dashboard_path, rules_path, output)
-
-
-@click.command()
-@click.option('--path', default='./data', help='Path to search for the YAML rule definions.')
-def rule_info(path):
-    """Get detailed info from Prometheus rule targets."""
-    logging.info(
-        'Searching path `{}` for YAML rule definitions for detailed info ...'.format(path))
-    info_rules(path)
-
-
 @click.command()
 @click.option('--path', default='./data', help='Path to search for the YAML rule definions.')
 def rule_metrics(path):
@@ -88,7 +47,6 @@ def rule_metrics(path):
     logging.info(
         'Searching path `{}` for YAML rule definitions for metrics ...'.format(path))
     metrics_rules(path)
-
 
 @click.command()
 @click.option('--source-path', default='./source', help='Path to search for the source YAML rule files.')
