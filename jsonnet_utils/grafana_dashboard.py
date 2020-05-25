@@ -30,7 +30,8 @@ GRAFONNET_GRAPH_PANEL = """
         format='{}',
         stack='{}',
         min=0,
-      ),{{h: 0,w: 0, x: 0, y: 0}}
+      ),
+      {{h: 0,w: 0, x: 0, y: 0}}
     )"""
 
 GRAFONNET_SINGLESTAT_PANEL = """
@@ -41,7 +42,8 @@ GRAFONNET_SINGLESTAT_PANEL = """
         span={},
         format='{}',
         valueName='current',
-      ),{{h: 0,w: 0, x: 0, y: 0}}
+      ),
+      {{h: 0,w: 0, x: 0, y: 0}}
     )"""
 
 GRAFONNET_PROMETHEUS_TARGET = """
