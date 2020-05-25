@@ -30,8 +30,8 @@ GRAFONNET_GRAPH_PANEL = """
         format='{}',
         stack='{}',
         min=0,
-      )
-    )"""
+      ),{{h: 0,w: 0, x: 0, y: 0}}
+    ){}"""
 
 GRAFONNET_SINGLESTAT_PANEL = """
     .addPanel(
@@ -41,8 +41,8 @@ GRAFONNET_SINGLESTAT_PANEL = """
         span={},
         format='{}',
         valueName='current',
-      )
-    )"""
+      ),{{h: 0,w: 0, x: 0, y: 0}}
+    ){}"""
 
 GRAFONNET_PROMETHEUS_TARGET = """
     .addTarget(
@@ -152,25 +152,36 @@ def convert_dashboard_jsonnet(dashboard, format, source_path, build_path):
                 )
         for panel in dashboard.get("panels", []):
             if panel["type"] == "singlestat":
+                for target in panel.get("targets", []):
+                    panel_targets=[]
+                    if "expr" in target:
+                        panel_targets.append(
+                            GRAFONNET_PROMETHEUS_TARGET.format(target["expr"])
+                        )
                 dashboard_lines.append(
                     GRAFONNET_SINGLESTAT_PANEL.format(
-                        panel["title"], "null" if "span" not in panel else panel["span"], panel["format"]
+                        panel["title"],
+                        "null" if "span" not in panel else panel["span"],
+                        panel["format"],
+                        "".join(panel_targets)
                     )
                 )
             if panel["type"] == "graph":
+                for target in panel.get("targets", []):
+                    panel_targets=[]
+                    if "expr" in target:
+                        panel_targets.append(
+                            GRAFONNET_PROMETHEUS_TARGET.format(target["expr"])
+                        )
                 dashboard_lines.append(
                     GRAFONNET_GRAPH_PANEL.format(
                         panel["title"],
                         "null" if "span" not in panel else panel["span"],
                         panel["yaxes"][0]["format"],
                         str(panel["stack"]),
+                        "".join(panel_targets)
                     )
                 )
-            for target in panel.get("targets", []):
-                if "expr" in target:
-                    dashboard_lines.append(
-                        GRAFONNET_PROMETHEUS_TARGET.format(target["expr"])
-                    )
 
         dashboard_lines.append("}\n}")
     else:
