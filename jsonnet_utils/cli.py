@@ -6,7 +6,7 @@ import os
 import click
 import logging
 from .grafana_dashboard import convert_dashboards, test_dashboards
-from .prometheus_rule import convert_rules, metrics_rules
+from .prometheus_rule import convert_rules
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)-5.5s]  %(message)s",
@@ -39,14 +39,6 @@ def dashboard_test(path, scheme, layout):
     logging.info(
         'Searching path `{}` for JSON dashboards to test ...'.format(path))
     test_dashboards(path)
-
-@click.command()
-@click.option('--path', default='./data', help='Path to search for the YAML rule definions.')
-def rule_metrics(path):
-    """Get metric names from Prometheus rule targets."""
-    logging.info(
-        'Searching path `{}` for YAML rule definitions for metrics ...'.format(path))
-    metrics_rules(path)
 
 @click.command()
 @click.option('--source-path', default='./source', help='Path to search for the source YAML rule files.')

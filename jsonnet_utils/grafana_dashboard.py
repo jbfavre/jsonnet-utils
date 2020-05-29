@@ -18,10 +18,30 @@ logging.basicConfig(
 GRAFONNET_INCLUDES = """
     local grafana = import 'grafonnet/grafana.libsonnet';"""
 
-GRAFONNET_DASHBOARD = """
-    grafana.dashboard.new(\n{}, tags={})"""
+GRAFONNET_HEADER = """
+  dashboard:: {{
+    new(
+      title='{}',
+      description='{}',
+      tags={},
+      refresh='{}',
+      time_from='{}',
+      uid='{}',
+    ):: self + grafana.dashboard.new(
+        title=title,
+        description=description,
+        tags=tags,
+        refresh=refresh,
+        time_from=time_from,
+        uid=uid
+    )"""
 
-GRAFONNET_GRIDPOS = """,{{h: {},w: {}, x: {}, y: {}}}"""
+GRAFONNET_GRIDPOS = """, gridPos={{
+        x: {},
+        y: {},
+        w: {},
+        h: {},
+      }})"""
 
 GRAFONNET_GRAPH_PANEL = """
     .addPanel(
@@ -32,8 +52,7 @@ GRAFONNET_GRAPH_PANEL = """
         format='{}',
         stack='{}',
         min=0,
-      ){}
-    )"""
+      )"""
 
 GRAFONNET_SINGLESTAT_PANEL = """
     .addPanel(
@@ -43,14 +62,23 @@ GRAFONNET_SINGLESTAT_PANEL = """
         span={},
         format='{}',
         valueName='current',
-      ){}
-    )"""
+      )"""
 
-GRAFONNET_PROMETHEUS_TARGET = """.addTarget(
+# GRAFONNET_PROMETHEUS_TARGET = """
+#     .addTarget(
+#       grafana.prometheus.target(
+#         |||
+#           {}
+#         ||| % $._config,
+#         legendFormat='',
+#       )
+#     )"""
+GRAFONNET_PROMETHEUS_TARGET = """
+    .addTarget(
       grafana.prometheus.target(
         |||
           {}
-        ||| % $._config,
+        |||,
         legendFormat='',
       )
     )"""
@@ -59,10 +87,16 @@ GRAFONNET_PROMETHEUS_TARGET = """.addTarget(
 def convert_dashboard_jsonnet(dashboard, format, source_path, build_path):
     dashboard_lines = []
     dashboard_lines.append(GRAFONNET_INCLUDES)
-    dashboard_lines.append("{\ngrafanaDashboards+:: {")
-    dashboard_lines.append("'{}':".format(dashboard["_filename"]))
+    dashboard_lines.append("{")
     dashboard_lines.append(
-        GRAFONNET_DASHBOARD.format('"' + dashboard.get("title", "N/A") + '"', [])
+        GRAFONNET_HEADER.format(
+            dashboard.get("title", "Dashboard title"),
+            dashboard.get("description", ""),
+            dashboard.get("tags", "[]"),
+            dashboard.get("refresh", "1m"),
+            dashboard.get("time_from", "now-1h"),
+            dashboard.get("uid", ""),
+        )
     )
     for variable in dashboard.get("templating", {}).get("list", []):
         if variable["type"] == "query":
@@ -71,26 +105,17 @@ def convert_dashboard_jsonnet(dashboard, format, source_path, build_path):
             else:
                 multi = ""
             dashboard_lines.append(
-                "\n.add{}Template('{}', '{}', 'instance')".format(
+                ".add{}Template('{}', '{}', 'instance')".format(
                     multi, variable["name"], variable["query"]
                 )
             )
     for panel in dashboard.get("panels", []):
-        gridPos = ""
-        if panel["gridPos"]:
-            gridPos = GRAFONNET_GRIDPOS.format(
-                panel['gridPos']['h'],
-                panel['gridPos']['w'],
-                panel['gridPos']['x'],
-                panel['gridPos']['y']
-            )
         if panel["type"] == "singlestat":
             dashboard_lines.append(
                 GRAFONNET_SINGLESTAT_PANEL.format(
                     panel["title"],
                     "null" if "span" not in panel else panel["span"],
-                    panel["format"],
-                    gridPos
+                    panel["format"]
                 )
             )
         if panel["type"] == "graph":
@@ -99,8 +124,7 @@ def convert_dashboard_jsonnet(dashboard, format, source_path, build_path):
                     panel["title"],
                     "null" if "span" not in panel else panel["span"],
                     panel["yaxes"][0]["format"],
-                    str(panel["stack"]) ,
-                    gridPos
+                    str(panel["stack"])
                 )
             )
         for target in panel.get("targets", []):
@@ -108,6 +132,17 @@ def convert_dashboard_jsonnet(dashboard, format, source_path, build_path):
                 dashboard_lines.append(
                     GRAFONNET_PROMETHEUS_TARGET.format(target["expr"])
                 )
+        gridPos = ""
+        if panel["gridPos"]:
+            dashboard_lines.append(
+                GRAFONNET_GRIDPOS.format(
+                    panel['gridPos']['h'],
+                    panel['gridPos']['w'],
+                    panel['gridPos']['x'],
+                    panel['gridPos']['y']
+                )
+            )
+
     dashboard_lines.append("}\n}")
     dashboard_str = "\n".join(dashboard_lines)
 
