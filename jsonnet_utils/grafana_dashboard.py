@@ -15,74 +15,119 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()],
 )
 
-GRAFONNET_INCLUDES = """
-    local grafana = import 'grafonnet/grafana.libsonnet';"""
+GRAFONNET_INCLUDES = """local grafana = import 'grafonnet/grafana.libsonnet';"""
 
-GRAFONNET_HEADER = """
-  dashboard:: {{
-    new(
-      title='{}',
-      description='{}',
-      tags={},
-      refresh='{}',
-      time_from='{}',
-      uid='{}',
-    ):: self + grafana.dashboard.new(
-        title=title,
-        description=description,
-        tags=tags,
-        refresh=refresh,
-        time_from=time_from,
-        uid=uid
-    )"""
+GRAFONNET_HEADER = """dashboard:: {{
+  new(
+    title='{}',
+    description='{}',
+    tags={},
+    refresh='{}',
+    time_from='{}',
+    uid='{}',
+  ):: self + grafana.dashboard.new(
+    title=title,
+    description=description,
+    tags=tags,
+    refresh=refresh,
+    time_from=time_from,
+    uid=uid
+  )"""
+
+GRAFONNET_GRAPH_PANEL = """.addPanel(
+  grafana.graphPanel.new(
+    '{}',
+    datasource='$datasource',
+    span={},
+    format='{}',
+    stack='{}',
+    min=0,
+  )"""
+
+GRAFONNET_SINGLESTAT_PANEL = """.addPanel(
+  grafana.singlestat.new(
+    '{}',
+    datasource='$datasource',
+    span={},
+    format='{}',
+    valueName='current',
+  )"""
 
 GRAFONNET_GRIDPOS = """, gridPos={{
-        x: {},
-        y: {},
-        w: {},
-        h: {},
-      }})"""
+    x: {},
+    y: {},
+    w: {},
+    h: {},
+  }}
+)"""
 
-GRAFONNET_GRAPH_PANEL = """
-    .addPanel(
-      grafana.graphPanel.new(
-        '{}',
-        datasource='$datasource',
-        span={},
-        format='{}',
-        stack='{}',
-        min=0,
-      )"""
+GRAFONNET_ROW = """.addRow(
+  grafana.row.new(
+  title='{}',
+  height={},
+  collapse={},
+  repeat={},
+  showTitle={},
+  titleSize='{}'
+)"""
 
-GRAFONNET_SINGLESTAT_PANEL = """
-    .addPanel(
-      grafana.singlestat.new(
-        '{}',
-        datasource='$datasource',
-        span={},
-        format='{}',
-        valueName='current',
-      )"""
+GRAFONNET_PROMETHEUS_TARGET = """.addTarget(
+  grafana.prometheus.target(
+    |||
+      {}
+    |||,
+    legendFormat='',
+  )
+)"""
 
-# GRAFONNET_PROMETHEUS_TARGET = """
-#     .addTarget(
-#       grafana.prometheus.target(
-#         |||
-#           {}
-#         ||| % $._config,
-#         legendFormat='',
-#       )
-#     )"""
-GRAFONNET_PROMETHEUS_TARGET = """
-    .addTarget(
-      grafana.prometheus.target(
-        |||
-          {}
-        |||,
-        legendFormat='',
-      )
-    )"""
+GRAFONNET_TEMPLATE = """.addTemplate('{}', '{}', 'instance')"""
 
+def extract_panel(panel):
+    panel_lines=[]
+    if panel["type"] == "row":
+        panel_lines.append(
+            GRAFONNET_ROW.format(
+                "Dashboard Row" if "title" not in panel else panel["title"],
+                "null" if "height" not in panel else panel["height"],
+                "false" if "collapse" not in panel else panel["collapse"],
+                "null" if "repeat" not in panel else panel["repeat"],
+                "null" if "showTitle" not in panel else panel["showTitle"],
+                "h6" if "titleSize" not in panel else panel["titleSize"]
+            )
+        )
+    if panel["type"] == "singlestat":
+        panel_lines.append(
+            GRAFONNET_SINGLESTAT_PANEL.format(
+                panel["title"],
+                "null" if "span" not in panel else panel["span"],
+                panel["format"]
+            )
+        )
+    if panel["type"] == "graph":
+        panel_lines.append(
+            GRAFONNET_GRAPH_PANEL.format(
+                panel["title"],
+                "null" if "span" not in panel else panel["span"],
+                panel["yaxes"][0]["format"],
+                str(panel["stack"])
+            )
+        )
+    for target in panel.get("targets", []):
+        if "expr" in target:
+            panel_lines.append(
+                GRAFONNET_PROMETHEUS_TARGET.format(target["expr"])
+            )
+    gridPos = ""
+    if panel["gridPos"]:
+        panel_lines.append(
+            GRAFONNET_GRIDPOS.format(
+                panel['gridPos']['h'],
+                panel['gridPos']['w'],
+                panel['gridPos']['x'],
+                panel['gridPos']['y']
+            )
+        )
+    return "\n".join(panel_lines)
 
 def convert_dashboard_jsonnet(dashboard, format, source_path, build_path):
     dashboard_lines = []
@@ -100,48 +145,15 @@ def convert_dashboard_jsonnet(dashboard, format, source_path, build_path):
     )
     for variable in dashboard.get("templating", {}).get("list", []):
         if variable["type"] == "query":
-            if variable["multi"]:
-                multi = "Multi"
-            else:
-                multi = ""
             dashboard_lines.append(
-                ".add{}Template('{}', '{}', 'instance')".format(
-                    multi, variable["name"], variable["query"]
+                GRAFONNET_TEMPLATE.format(
+                    variable["name"],
+                    variable["query"]
                 )
             )
     for panel in dashboard.get("panels", []):
-        if panel["type"] == "singlestat":
-            dashboard_lines.append(
-                GRAFONNET_SINGLESTAT_PANEL.format(
-                    panel["title"],
-                    "null" if "span" not in panel else panel["span"],
-                    panel["format"]
-                )
-            )
-        if panel["type"] == "graph":
-            dashboard_lines.append(
-                GRAFONNET_GRAPH_PANEL.format(
-                    panel["title"],
-                    "null" if "span" not in panel else panel["span"],
-                    panel["yaxes"][0]["format"],
-                    str(panel["stack"])
-                )
-            )
-        for target in panel.get("targets", []):
-            if "expr" in target:
-                dashboard_lines.append(
-                    GRAFONNET_PROMETHEUS_TARGET.format(target["expr"])
-                )
-        gridPos = ""
-        if panel["gridPos"]:
-            dashboard_lines.append(
-                GRAFONNET_GRIDPOS.format(
-                    panel['gridPos']['h'],
-                    panel['gridPos']['w'],
-                    panel['gridPos']['x'],
-                    panel['gridPos']['y']
-                )
-            )
+        panel_str = extract_panel(panel)
+        dashboard_lines.append(panel_str)
 
     dashboard_lines.append("}\n}")
     dashboard_str = "\n".join(dashboard_lines)
@@ -155,29 +167,34 @@ def convert_dashboard_jsonnet(dashboard, format, source_path, build_path):
         )
         with open(build_file, "w") as the_file:
             the_file.write(dashboard_str)
-        output = (
-            subprocess.Popen(
-                "jsonnetfmt -n 2 --max-blank-lines 2 --string-style s --comment-style s -i "
-                + build_file,
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
+        logging.info(
+            "Converted dashboard `{}/{}` to `{}` ({} format)".format(
+                source_path, dashboard["_filename"], build_file, format
             )
-            .stdout.read()
-            .decode("utf-8")
         )
-        if "ERROR" in output:
-            logging.info(
-                "Error `{}` converting dashboard `{}/{}` to `{}`".format(
-                    output, source_path, dashboard["_filename"], build_file
-                )
-            )
-        else:
-            logging.info(
-                "Converted dashboard `{}/{}` to `{}` ({} format)".format(
-                    source_path, dashboard["_filename"], build_file, format
-                )
-            )
+        # output = (
+        #     subprocess.Popen(
+        #         "jsonnetfmt -n 2 -i "
+        #         + build_file,
+        #         shell=True,
+        #         stdout=subprocess.PIPE,
+        #         stderr=subprocess.STDOUT,
+        #     )
+        #     .stdout.read()
+        #     .decode("utf-8")
+        # )
+        # if "ERROR" in output:
+        #     logging.info(
+        #         "Error `{}` reformatting dashboard `{}/{}` to `{}`".format(
+        #             output, source_path, dashboard["_filename"], build_file
+        #         )
+        #     )
+        # else:
+        #     logging.info(
+        #         "Reformatted dashboard `{}/{}` to `{}` ({} format)".format(
+        #             source_path, dashboard["_filename"], build_file, format
+        #         )
+        #     )
 
     return dashboard_str
 
