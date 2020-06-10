@@ -63,12 +63,13 @@ GRAFONNET_GRIDPOS = """, gridPos={{
 
 GRAFONNET_ROW = """.addRow(
   grafana.row.new(
-  title='{}',
-  height={},
-  collapse={},
-  repeat={},
-  showTitle={},
-  titleSize='{}'
+    title='{}',
+    height={},
+    collapse={},
+    repeat='{}',
+    showTitle={},
+    titleSize='{}'
+  )
 )"""
 
 GRAFONNET_PROMETHEUS_TARGET = """.addTarget(
@@ -80,7 +81,13 @@ GRAFONNET_PROMETHEUS_TARGET = """.addTarget(
   )
 )"""
 
-GRAFONNET_TEMPLATE = """.addTemplate('{}', '{}', 'instance')"""
+GRAFONNET_TEMPLATE = """.addTemplate(
+  grafana.template.new(
+    '{}',
+    '{}',
+    'instance'
+  )
+)"""
 
 def extract_panel(panel):
     panel_lines=[]
@@ -118,7 +125,7 @@ def extract_panel(panel):
                 GRAFONNET_PROMETHEUS_TARGET.format(target["expr"])
             )
     gridPos = ""
-    if panel["gridPos"]:
+    if panel["gridPos"] and panel["type"] != "row":
         panel_lines.append(
             GRAFONNET_GRIDPOS.format(
                 panel['gridPos']['h'],
