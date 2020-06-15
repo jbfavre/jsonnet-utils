@@ -54,10 +54,10 @@ GRAFONNET_SINGLESTAT_PANEL = """.addPanel(
   )"""
 
 GRAFONNET_GRIDPOS = """, gridPos={{
+    h: {},
+    w: {},
     x: {},
     y: {},
-    w: {},
-    h: {},
   }}
 )"""
 
