@@ -83,9 +83,12 @@ GRAFONNET_PROMETHEUS_TARGET = """.addTarget(
 
 GRAFONNET_TEMPLATE = """.addTemplate(
   grafana.template.new(
-    '{}',
-    '{}',
-    'instance'
+    name='{}',
+    datasource=datasource,
+    includeAll={},
+    query='{}',
+    refresh={},
+    sort={},
   )
 )"""
 
@@ -155,7 +158,10 @@ def convert_dashboard_jsonnet(dashboard, format, source_path, build_path):
             dashboard_lines.append(
                 GRAFONNET_TEMPLATE.format(
                     variable["name"],
-                    variable["query"]
+                    "true" if variable["includeAll"] is True else "false",
+                    variable["query"],
+                    variable["refresh"],
+                    variable["sort"]
                 )
             )
     for panel in dashboard.get("panels", []):
